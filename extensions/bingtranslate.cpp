@@ -1,4 +1,4 @@
-﻿#include "qtcommon.h"
+#include "qtcommon.h"
 #include "translatewrapper.h"
 #include "network.h"
 
@@ -201,7 +201,7 @@ std::pair<bool, std::wstring> Translate(const std::wstring& text, TranslationPar
 	{
 		std::wstring translateFromComponent = tlp.translateFrom == L"?" ? L"" : L"&from=" + codes.at(tlp.translateFrom);
 		if (HttpRequest httpRequest{
-			L"Mozilla/5.0 Textractor",
+			L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
 			L"api.cognitive.microsofttranslator.com",
 			L"POST",
 			FormatString(L"/translate?api-version=3.0&to=%s%s", codes.at(tlp.translateTo), translateFromComponent).c_str(),
@@ -215,7 +215,7 @@ std::pair<bool, std::wstring> Translate(const std::wstring& text, TranslationPar
 
 	static std::atomic<int> i = 0;
 	static Synchronized<std::wstring> token;
-	if (token->empty()) if (HttpRequest httpRequest{ L"Mozilla/5.0 Textractor", L"www.bing.com", L"GET", L"translator" })
+	if (token->empty()) if (HttpRequest httpRequest{ L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0", L"www.bing.com", L"GET", L"translator" })
 	{
 		std::wstring tokenBuilder;
 		if (auto tokenPos = httpRequest.response.find(L"[" + std::to_wstring(time(nullptr) / 100)); tokenPos != std::string::npos)
@@ -230,7 +230,7 @@ std::pair<bool, std::wstring> Translate(const std::wstring& text, TranslationPar
 	else return { false, FormatString(L"%s: could not acquire token", TRANSLATION_ERROR) };
 
 	if (HttpRequest httpRequest{
-		L"Mozilla/5.0 Textractor",
+		L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
 		L"www.bing.com",
 		L"POST",
 		FormatString(L"/ttranslatev3?fromLang=%s&to=%s&text=%s%s.%d", codes.at(tlp.translateFrom), codes.at(tlp.translateTo), Escape(text), token.Copy(), i++).c_str()

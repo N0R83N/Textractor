@@ -1,4 +1,4 @@
-﻿#include "qtcommon.h"
+#include "qtcommon.h"
 #include "translatewrapper.h"
 #include "network.h"
 
@@ -252,15 +252,46 @@ std::pair<bool, std::wstring> Translate(const std::wstring& text, TranslationPar
 		else return { false, FormatString(L"%s (code=%u)", TRANSLATION_ERROR, httpRequest.errorCode) };
 	}
 
+	std::wstring from = codes.at(tlp.translateFrom), to = codes.at(tlp.translateTo);
+	std::string chromePayload = FormatString(R"([[["%s"],"%s","%s"],"wt_lib"])",
+		JSON::Escape(WideStringToString(text)),
+		WideStringToString(from),
+		WideStringToString(to)
+	);
+
 	if (HttpRequest httpRequest{
-		L"Mozilla/5.0 Textractor",
-		L"translate.google.com",
-		L"GET",
-		FormatString(L"/m?sl=%s&tl=%s&q=%s", codes.at(tlp.translateFrom), codes.at(tlp.translateTo), Escape(text)).c_str()
+		L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		L"translate-pa.googleapis.com",
+		L"POST",
+		L"/v1/translateHtml",
+		chromePayload,
+		L"Host: translate-pa.googleapis.com\r\nX-Goog-API-Key: AIzaSyATBXajvzQLTDHEQbcpq0Ihe0vWDHmO520\r\nContent-Type: application/json+protobuf\r\n"
 	})
 	{
-		auto start = httpRequest.response.find(L"result-container\">"), end = httpRequest.response.find(L'<', start);
-		if (end != std::string::npos) return { true, HTML::Unescape(httpRequest.response.substr(start + 18, end - start - 18)) };
+		auto root = JSON::Parse(httpRequest.response);
+		if (auto translation = Copy(root[0][0].String()))
+			return { true, HTML::Unescape(translation.value()) };
+	}
+
+	// Fallback to Google Web API endpoint (client=gtx)
+	if (HttpRequest httpRequest{
+		L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		L"translate.googleapis.com",
+		L"GET",
+		FormatString(L"/translate_a/single?client=gtx&sl=%s&tl=%s&dt=t&q=%s", from.c_str(), to.c_str(), Escape(text).c_str()).c_str()
+	})
+	{
+		std::wstring result;
+		auto root = JSON::Parse(httpRequest.response);
+		if (auto parts = root[0].Array())
+		{
+			for (const auto& part : *parts)
+			{
+				if (auto piece = part[0].String())
+					result += *piece;
+			}
+		}
+		if (!result.empty()) return { true, result };
 		return { false, FormatString(L"%s: %s", TRANSLATION_ERROR, httpRequest.response) };
 	}
 	else return { false, FormatString(L"%s (code=%u)", TRANSLATION_ERROR, httpRequest.errorCode) };
